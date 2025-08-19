@@ -6,10 +6,17 @@
  */
 
 import { NewAppScreen } from '@react-native/new-app-screen';
-import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
+import { useEffect } from 'react';
+import { Platform, StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
+import RNBootSplash from "react-native-bootsplash";
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
+
+  useEffect(() => {
+    RNBootSplash.hide({ fade: true }); // ซ่อน splash ตอนแอปโหลดเสร็จ
+  }, []);
+
 
   return (
     <View style={styles.container}>
