@@ -10,6 +10,7 @@ import com.facebook.react.ReactPackage
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import com.facebook.react.defaults.DefaultReactNativeHost
 import com.sdmaproject.SmsDefaultPackage
+import com.sdmaproject.SmsReceiverPackage
 
 
 class MainApplication : Application(), ReactApplication {
@@ -21,6 +22,7 @@ class MainApplication : Application(), ReactApplication {
               // Packages that cannot be autolinked yet can be added manually here, for example:
               // add(MyReactNativePackage())
               add(SmsDefaultPackage())
+              add(SmsReceiverPackage())
             }
 
         override fun getJSMainModuleName(): String = "index"
