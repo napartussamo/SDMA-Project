@@ -12,6 +12,9 @@ import com.facebook.react.ReactNativeHost
 import com.facebook.react.bridge.ReactContext
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
+import android.provider.Telephony
+import android.telephony.TelephonyManager
+
 
 class MainActivity : ReactActivity() {
     private var smsModule: SmsDefaultModule? = null

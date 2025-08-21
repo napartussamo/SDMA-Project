@@ -37,7 +37,7 @@ useEffect(() => {
 
     try {
       if (firebaseUser) {
-        const userDocRef = doc(collection(firestore, 'user'), firebaseUser.uid);
+        const userDocRef = doc(collection(firestore, 'users'), firebaseUser.uid);
         const userDoc = await getDoc(userDocRef);
 
         if (userDoc.exists()) {
@@ -63,7 +63,7 @@ useEffect(() => {
       await signOut(auth);
       setUser(null);
     } finally {
-      // ✅ ต้องอยู่ใน finally เพื่อให้ไม่ค้าง
+      // ต้องอยู่ใน finally เพื่อให้ไม่ค้าง
       setLoadingUser(false);
     }
 
