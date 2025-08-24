@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Button, StyleSheet, FlatList } from 'react-native';
 import { useAuth } from '../context/authContext';
 import { firestore } from '../firebase/firebaseConfig';
-import { collection, onSnapshot, query, orderBy } from '@react-native-firebase/firestore';
+import { collection, onSnapshot, query, orderBy, getDocs } from '@react-native-firebase/firestore';
 import { useSmsReceiver } from '../native/SmsReceiverModule';
 import { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 
@@ -13,6 +13,7 @@ type Message = {
   status: string;
   timestamp: number;
   contact: string;
+  risk_score: number;
 };
 
 const HomeScreen = ({ navigation }: any) => {
@@ -21,41 +22,62 @@ const HomeScreen = ({ navigation }: any) => {
 
   useSmsReceiver();
 
+  // ฟังก์ชันดึง risk_score จาก subcollection riskScore
+  const fetchRiskScore = async (userId: string, contactId: string, messageId: string): Promise<number> => {
+    try {
+      const riskScoreRef = collection(
+        firestore, 
+        'users', userId, 'contactPersons', contactId, 'messages', messageId, 'riskScore'
+      );
+      
+      const snapshot = await getDocs(riskScoreRef);
+      
+      if (!snapshot.empty) {
+        const riskData = snapshot.docs[0].data();
+        return Number(riskData.risk_score) || 0;
+      }
+      return 0;
+    } catch (error) {
+      console.error('Error fetching risk score:', error);
+      return 0;
+    }
+  };
+
   useEffect(() => {
     if (!user) return;
 
     const contactsRef = collection(firestore, 'users', user.uid, 'contactPersons');
-
-    // เก็บ unsubscribe ของ messages listener แต่ละ contact
     let messageListeners: (() => void)[] = [];
 
     const unsubscribeContacts = onSnapshot(contactsRef, (snapshot) => {
-      // ยกเลิก listener เดิมก่อน
       messageListeners.forEach(unsub => unsub());
       messageListeners = [];
 
-      snapshot.forEach( (contactDoc: FirebaseFirestoreTypes.QueryDocumentSnapshot<FirebaseFirestoreTypes.DocumentData>) => {
+      snapshot.forEach(async (contactDoc: FirebaseFirestoreTypes.QueryDocumentSnapshot<FirebaseFirestoreTypes.DocumentData>) => {
         const contactId = contactDoc.id;
         const data = contactDoc.data();
         const messagesRef = collection(contactDoc.ref, 'messages');
-        const q = query(messagesRef, orderBy('timestamp', 'desc'));
+        const q = query(messagesRef, orderBy('msg_timestamp', 'desc'));
 
-        // ฟัง real-time messages ของแต่ละ contact
-        const unsubscribeMessages = onSnapshot(q, (msgsSnapshot) => {
+        const unsubscribeMessages = onSnapshot(q, async (msgsSnapshot) => {
           if (!msgsSnapshot.empty) {
-            const latest = msgsSnapshot.docs[0].data() as any;
+            const latestMsg = msgsSnapshot.docs[0];
+            const latest = latestMsg.data() as any;
+            
+            // ดึง risk_score จาก subcollection riskScore
+            const riskScore = await fetchRiskScore(user.uid, contactId, latestMsg.id);
 
-            // อัปเดต state โดย merge หรือแทนค่าเฉพาะ contact นั้น
             setMessages(prev => {
               const others = prev.filter(m => m.id !== contactId);
               return [
                 {
                   id: contactId,
-                  body: latest.body,
-                  direction: latest.direction,
-                  status: latest.status,
-                  timestamp: latest.timestamp,
-                  contact: data.phoneNumber,
+                  body: latest.msg_content,
+                  direction: latest.msg_direction,
+                  status: latest.msg_status,
+                  timestamp: latest.msg_timestamp,
+                  contact: data.contact_person_phone_number,
+                  risk_score: riskScore,
                 },
                 ...others,
               ].sort((a, b) => b.timestamp - a.timestamp);
@@ -78,6 +100,13 @@ const HomeScreen = ({ navigation }: any) => {
     navigation.replace('PhoneLogin');
   };
 
+  // เลือกสีวงกลมตาม risk score
+  const getRiskColor = (score: number) => {
+    if (score >= 0 && score <= 29) return '#4CAF50';   // Safe = เขียว
+    if (score >= 30 && score <= 59) return '#FFEB3B';   // Spam = เหลือง
+    return '#F44336';                   // Scam = แดง
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.welcomeText}>
@@ -89,11 +118,26 @@ const HomeScreen = ({ navigation }: any) => {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <View style={styles.messageItem}>
-            <Text style={styles.contactText}>{item.contact}</Text>
-            <Text>{item.body}</Text>
-            <Text style={styles.metaText}>
-              {item.direction} • {item.status}
-            </Text>
+            <View style={styles.row}>
+              {/* วงกลม risk score */}
+              <View
+                style={[
+                  styles.riskCircle,
+                  { backgroundColor: getRiskColor(item.risk_score) },
+                ]}
+              >
+                <Text style={styles.riskText}>{item.risk_score}</Text>
+              </View>
+
+              {/* ข้อมูล contact + ข้อความ */}
+              <View >
+                <Text style={styles.contactText}>{item.contact}</Text>
+                <Text numberOfLines={1}>{item.body}</Text>
+                <Text style={styles.metaText}>
+                  {item.direction} • {item.status}
+                </Text>
+              </View>
+            </View>
           </View>
         )}
       />
@@ -120,6 +164,22 @@ const styles = StyleSheet.create({
     padding: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#ddd',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  riskCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  riskText: {
+    color: '#000',
+    fontWeight: 'bold',
   },
   contactText: {
     fontWeight: 'bold',
