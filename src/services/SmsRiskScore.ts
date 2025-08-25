@@ -20,6 +20,8 @@ export const analyzeSmsRiskScore = async (
   message: string
 ) => {
   try {
+    // log ข้อความที่จะวิเคราะห์
+    console.log(`[SmsRiskScore] Analyzing message: "${message}"`);
     // เรียก FastAPI
     const response = await fetch(FASTAPI_URL, {
       method: "POST",
@@ -54,7 +56,7 @@ export const analyzeSmsRiskScore = async (
       risk_category,
     });
 
-    console.log("✅ [SmsRiskScore] Risk score saved to Firestore subcollection");
+    console.log("✅ [SmsRiskScore] Saved risk score for message ID: ${msgId}");
   } catch (error) {
     console.error("❌ [SmsRiskScore] Error analyzing message:", error);
   }
