@@ -15,6 +15,7 @@ type Message = {
   contact: string;
   risk_score: number;
 };
+/*const Drawer = createDrawerNavigator();*/
 
 const HomeScreen = ({ navigation }: any) => {
   const { user, logout } = useAuth();
@@ -157,9 +158,11 @@ const HomeScreen = ({ navigation }: any) => {
   );
 };
 
+
+
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#fff' },
-  welcomeText: { fontSize: 20, marginBottom: 16, textAlign: 'center' },
+  container: { flex: 1, padding: 24, backgroundColor: '#fff' },
+  welcomeText: { fontSize: 20, marginVertical: 36, textAlign: 'center' },
   messageItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: '#ddd' },
   row: { flexDirection: 'row', alignItems: 'center' },
   riskCircle: {
