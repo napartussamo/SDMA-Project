@@ -11,6 +11,7 @@ import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import com.facebook.react.defaults.DefaultReactNativeHost
 import com.sdmaproject.SmsDefaultPackage
 import com.sdmaproject.SmsReceiverPackage
+import com.sdmaproject.SmsSenderPackage
 
 
 class MainApplication : Application(), ReactApplication {
@@ -23,6 +24,8 @@ class MainApplication : Application(), ReactApplication {
               // add(MyReactNativePackage())
               add(SmsDefaultPackage())
               add(SmsReceiverPackage())
+              add(SmsSenderPackage())
+
             }
 
         override fun getJSMainModuleName(): String = "index"

@@ -1,12 +1,24 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TextInput,
+  TouchableOpacity,
+} from 'react-native';
 import { useAuth } from '../context/authContext';
 import { firestore } from '../firebase/firebaseConfig';
-import { collection, onSnapshot, query, orderBy } from '@react-native-firebase/firestore';
+import {
+  collection,
+  onSnapshot,
+  query,
+  orderBy,
+} from '@react-native-firebase/firestore';
 import { useSmsReceiver } from '../native/SmsReceiverModule';
 import { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { DrawerNavigationProp } from '@react-navigation/drawer';
+//import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -25,9 +37,13 @@ type TabType = 'All' | 'Safe' | 'Spam' | 'Scam';
 type RootStackParamList = {
   Home: undefined;
   Profile: undefined;
+  Chat: { contactId: string; contactPhone: string };
 };
 
-type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
+type HomeScreenNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'Home'
+>;
 
 const HomeScreen = () => {
   const { user } = useAuth();
@@ -42,21 +58,28 @@ const HomeScreen = () => {
   useEffect(() => {
     if (!user) return;
 
-    const contactsRef = collection(firestore, 'users', user.uid, 'contactPersons');
+    const contactsRef = collection(
+      firestore,
+      'users',
+      user.uid,
+      'contactPersons',
+    );
     let messageListeners: (() => void)[] = [];
 
-    const unsubscribeContacts = onSnapshot(contactsRef, (snapshot) => {
+    const unsubscribeContacts = onSnapshot(contactsRef, snapshot => {
       messageListeners.forEach(unsub => unsub());
       messageListeners = [];
 
       snapshot.forEach(
-        (contactDoc: FirebaseFirestoreTypes.QueryDocumentSnapshot<FirebaseFirestoreTypes.DocumentData>) => {
+        (
+          contactDoc: FirebaseFirestoreTypes.QueryDocumentSnapshot<FirebaseFirestoreTypes.DocumentData>,
+        ) => {
           const contactId = contactDoc.id;
           const data = contactDoc.data();
           const messagesRef = collection(contactDoc.ref, 'messages');
           const q = query(messagesRef, orderBy('msg_timestamp', 'desc'));
 
-          const unsubscribeMessages = onSnapshot(q, (msgsSnapshot) => {
+          const unsubscribeMessages = onSnapshot(q, msgsSnapshot => {
             if (!msgsSnapshot.empty) {
               const latestMsg = msgsSnapshot.docs[0];
               const latest = latestMsg.data() as any;
@@ -75,7 +98,9 @@ const HomeScreen = () => {
                   },
                   ...others,
                 ].sort((a, b) => b.timestamp - a.timestamp);
-                setFilteredMessages(applyFilter(updated, searchText, selectedTab));
+                setFilteredMessages(
+                  applyFilter(updated, searchText, selectedTab),
+                );
                 return updated;
               });
 
@@ -87,10 +112,10 @@ const HomeScreen = () => {
                 contactId,
                 'messages',
                 latestMsg.id,
-                'riskScore'
+                'riskScore',
               );
 
-              const unsubRisk = onSnapshot(riskScoreRef, (riskSnap) => {
+              const unsubRisk = onSnapshot(riskScoreRef, riskSnap => {
                 if (!riskSnap.empty) {
                   const riskData = riskSnap.docs[0].data();
                   const risk_score = Number(riskData.risk_score) || 0;
@@ -100,11 +125,12 @@ const HomeScreen = () => {
                     const target = prev.find(m => m.id === contactId);
                     if (!target) return prev;
 
-                    const updated = [
-                      { ...target, risk_score },
-                      ...others,
-                    ].sort((a, b) => b.timestamp - a.timestamp);
-                    setFilteredMessages(applyFilter(updated, searchText, selectedTab));
+                    const updated = [{ ...target, risk_score }, ...others].sort(
+                      (a, b) => b.timestamp - a.timestamp,
+                    );
+                    setFilteredMessages(
+                      applyFilter(updated, searchText, selectedTab),
+                    );
                     return updated;
                   });
                 }
@@ -115,7 +141,7 @@ const HomeScreen = () => {
           });
 
           messageListeners.push(unsubscribeMessages);
-        }
+        },
       );
     });
 
@@ -133,7 +159,7 @@ const HomeScreen = () => {
       filtered = filtered.filter(
         m =>
           m.contact.toLowerCase().includes(lower) ||
-          m.body.toLowerCase().includes(lower)
+          m.body.toLowerCase().includes(lower),
       );
     }
 
@@ -154,15 +180,15 @@ const HomeScreen = () => {
   };
 
   const getRiskColor = (score: number) => {
-    if (score >= 0 && score <= 29) return '#4CAF50';   // Safe
-    if (score >= 30 && score <= 59) return '#FFEB3B';  // Spam
-    return '#F7695F';                                  // Scam
+    if (score >= 0 && score <= 29) return '#4CAF50'; // Safe
+    if (score >= 30 && score <= 59) return '#FFEB3B'; // Spam
+    return '#F7695F'; // Scam
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.navigate("Profile")}>
+        <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
           <Ionicons name="menu" size={28} color="#000" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>SDMA</Text>
@@ -178,7 +204,7 @@ const HomeScreen = () => {
 
       {/* 📂 Tabs */}
       <View style={styles.tabs}>
-        {(['All', 'Safe', 'Spam', 'Scam'] as TabType[]).map((tab) => (
+        {(['All', 'Safe', 'Spam', 'Scam'] as TabType[]).map(tab => (
           <TouchableOpacity
             key={tab}
             style={[styles.tab, selectedTab === tab && styles.activeTab]}
@@ -187,7 +213,12 @@ const HomeScreen = () => {
               setFilteredMessages(applyFilter(messages, searchText, tab));
             }}
           >
-            <Text style={[styles.tabText, selectedTab === tab && styles.activeTabText]}>
+            <Text
+              style={[
+                styles.tabText,
+                selectedTab === tab && styles.activeTabText,
+              ]}
+            >
               {tab}
             </Text>
           </TouchableOpacity>
@@ -197,22 +228,37 @@ const HomeScreen = () => {
       {/* 📩 Messages */}
       <FlatList
         data={filteredMessages}
-        keyExtractor={(item) => item.id}
+        keyExtractor={item => item.id}
         renderItem={({ item }) => (
-          <View style={styles.messageItem}>
-            <View style={styles.row}>
-              <View style={[styles.riskCircle, { backgroundColor: getRiskColor(item.risk_score) }]}>
-                <Text style={styles.riskText}>{item.risk_score}</Text>
-              </View>
-              <View>
-                <Text style={styles.contactText}>{item.contact}</Text>
-                <Text numberOfLines={1}>{item.body}</Text>
-                <Text style={styles.metaText}>
-                  {item.direction} • {item.status}
-                </Text>
+          <TouchableOpacity
+            onPress={() =>
+              navigation.navigate('Chat', {
+                contactId: item.id,
+                contactPhone: item.contact,
+              })
+            }
+          >
+            <View style={styles.messageItem}>
+              <View style={styles.row}>
+                <View
+                  style={[
+                    styles.riskCircle,
+                    { backgroundColor: getRiskColor(item.risk_score) },
+                  ]}
+                >
+                  <Text style={styles.riskText}>{item.risk_score}</Text>
+                </View>
+
+                <View>
+                  <Text style={styles.contactText}>{item.contact}</Text>
+                  <Text numberOfLines={1}>{item.body}</Text>
+                  <Text style={styles.metaText}>
+                    {item.direction} • {item.status}
+                  </Text>
+                </View>
               </View>
             </View>
-          </View>
+          </TouchableOpacity>
         )}
       />
     </View>
@@ -233,17 +279,17 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   header: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  paddingVertical: 12,
-  paddingHorizontal: 16,
-},
-headerTitle: {
-  fontSize: 20,
-  fontWeight: 'bold',
-  marginLeft: 12,
-  color: '#000',
-},
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginLeft: 12,
+    color: '#000',
+  },
   tabs: {
     flexDirection: 'row',
     justifyContent: 'space-around',

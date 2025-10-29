@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef } from "react";
-import { NativeEventEmitter, NativeModules } from "react-native";
-import { firestore } from "../firebase/firebaseConfig";
-import { useAuth } from "../context/authContext";
+import { useCallback, useEffect, useRef } from 'react';
+import { NativeEventEmitter, NativeModules } from 'react-native';
+import { firestore } from '../firebase/firebaseConfig';
+import { useAuth } from '../context/authContext';
 import {
   collection,
   doc,
@@ -11,11 +11,11 @@ import {
   query,
   where,
   getDocs,
-} from "@react-native-firebase/firestore";
-import { analyzeSmsRiskScore } from "../services/SmsRiskScore";
+} from '@react-native-firebase/firestore';
+import { analyzeSmsRiskScore } from '../services/SmsRiskScore';
 
 const { SmsReceiverModule } = NativeModules;
-console.log("🟡 NativeModules =", NativeModules);
+console.log('🟡 SmsReceiverModule =', NativeModules);
 
 type SmsEvent = {
   sender: string;
@@ -36,20 +36,20 @@ export function useSmsReceiver() {
   const saveFullSmsToFirestore = useCallback(
     async (fullMsg: string, sender: string) => {
       if (!user) {
-        console.log("❌ User not available, cannot save SMS");
+        console.log('❌ User not available, cannot save SMS');
         return;
       }
 
       console.log(`💾 Attempting to save message: "${fullMsg}" from ${sender}`);
 
       try {
-        const userRef = doc(firestore, "users", user.uid);
-        const contactsCol = collection(userRef, "contactPersons");
+        const userRef = doc(firestore, 'users', user.uid);
+        const contactsCol = collection(userRef, 'contactPersons');
 
         // หา contact ถ้าไม่มีให้สร้างใหม่
         const q = query(
           contactsCol,
-          where("contact_person_phone_number", "==", sender)
+          where('contact_person_phone_number', '==', sender),
         );
         const snapshot = await getDocs(q);
 
@@ -60,52 +60,52 @@ export function useSmsReceiver() {
             contact_person_phone_number: sender,
             contact_person_name: sender,
           });
-          console.log("👤 New contact created");
+          console.log('👤 New contact created');
         } else {
           contactRef = snapshot.docs[0].ref;
         }
 
         // บันทึก message
-        const messagesRef = collection(contactRef, "messages");
+        const messagesRef = collection(contactRef, 'messages');
         const newMsgRef = await addDoc(messagesRef, {
           msg_content: fullMsg,
-          msg_direction: "incoming",
-          msg_status: "unread",
+          msg_direction: 'incoming',
+          msg_status: 'unread',
           msg_timestamp: serverTimestamp(),
         });
 
-        console.log("✅ SMS saved with ID:", newMsgRef.id);
+        console.log('✅ SMS saved with ID:', newMsgRef.id);
 
         // วิเคราะห์ความเสี่ยง
         await analyzeSmsRiskScore(
           user.uid,
           contactRef.id,
           newMsgRef.id,
-          fullMsg
+          fullMsg,
         );
-        console.log("✅ Risk analysis completed");
+        console.log('✅ Risk analysis completed');
       } catch (error) {
-        console.error("❌ Error saving SMS:", error);
+        console.error('❌ Error saving SMS:', error);
       }
     },
-    [user]
+    [user],
   );
 
   useEffect(() => {
-    console.log("📡 [SmsReceiver] Hook mounted, user =", user?.uid);
+    console.log('📡 [SmsReceiver] Hook mounted, user =', user?.uid);
 
     if (!user) return;
     if (!SmsReceiverModule) {
-      console.log("❌ [SmsReceiver] Native module not found");
+      console.log('❌ [SmsReceiver] Native module not found');
       return;
     }
 
     const eventEmitter = new NativeEventEmitter(SmsReceiverModule);
 
     const subscription = eventEmitter.addListener(
-      "onSmsReceived",
+      'onSmsReceived',
       async (sms: SmsEvent) => {
-        console.log("📩 [SmsReceiver] Received:", sms);
+        console.log('📩 [SmsReceiver] Received:', sms);
 
         try {
           const key = sms.sender;
@@ -118,7 +118,7 @@ export function useSmsReceiver() {
             pending.lastTimestamp = currentTime;
             if (pending.timeoutId) clearTimeout(pending.timeoutId);
             pending.timeoutId = setTimeout(async () => {
-              const fullMsg = pending.messages.join("");
+              const fullMsg = pending.messages.join('');
               await saveFullSmsToFirestore(fullMsg, key);
               delete pendingSmsRef.current[key];
             }, 5500);
@@ -131,22 +131,22 @@ export function useSmsReceiver() {
               lastTimestamp: currentTime,
               timeoutId: setTimeout(async () => {
                 const fullMsg =
-                  pendingSmsRef.current[key]?.messages.join("") || "";
+                  pendingSmsRef.current[key]?.messages.join('') || '';
                 await saveFullSmsToFirestore(fullMsg, key);
                 delete pendingSmsRef.current[key];
               }, 5500),
             };
           }
         } catch (error) {
-          console.error("❌ [SmsReceiver] Error Handling SMS:", error);
+          console.error('❌ [SmsReceiver] Error Handling SMS:', error);
         }
-      }
+      },
     );
 
-    console.log("📡 [SmsReceiver] Listener registered");
+    console.log('📡 [SmsReceiver] Listener registered');
 
     return () => {
-      console.log("🧹 [SmsReceiver] Listener removed");
+      console.log('🧹 [SmsReceiver] Listener removed');
       subscription.remove();
     };
   }, [user, saveFullSmsToFirestore]);
