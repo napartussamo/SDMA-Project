@@ -5,9 +5,15 @@ import {
   onAuthStateChanged,
   signInWithPhoneNumber,
   signOut,
-  FirebaseAuthTypes
+  FirebaseAuthTypes,
 } from '@react-native-firebase/auth';
-import { collection, doc, getDoc, setDoc } from '@react-native-firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  setDoc,
+} from '@react-native-firebase/firestore';
+import { blockedContactService } from '../native/blockedContactService'; // Add this import
 
 type User = {
   uid: string;
@@ -25,55 +31,66 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [user, setUser] = useState<User | null>(null);
-  const [confirm, setConfirm] = useState<FirebaseAuthTypes.ConfirmationResult | null>(null);
-
+  const [confirm, setConfirm] =
+    useState<FirebaseAuthTypes.ConfirmationResult | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
 
-useEffect(() => {
-  const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-    setLoadingUser(true);
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async firebaseUser => {
+      setLoadingUser(true);
 
-    try {
-      if (firebaseUser) {
-        const userDocRef = doc(collection(firestore, 'users'), firebaseUser.uid);
-        const userDoc = await getDoc(userDocRef);
+      try {
+        if (firebaseUser) {
+          const userDocRef = doc(
+            collection(firestore, 'users'),
+            firebaseUser.uid,
+          );
+          const userDoc = await getDoc(userDocRef);
 
-        if (userDoc.exists()) {
-          const data = userDoc.data() as User;
-          setUser({
-            uid: firebaseUser.uid,
-            user_phone_number: data?.user_phone_number || null,
-          });
+          if (userDoc.exists()) {
+            const data = userDoc.data() as User;
+            setUser({
+              uid: firebaseUser.uid,
+              user_phone_number: data?.user_phone_number || null,
+            });
+          } else {
+            await setDoc(userDocRef, {
+              user_phone_number: firebaseUser.phoneNumber,
+            });
+            setUser({
+              uid: firebaseUser.uid,
+              user_phone_number: firebaseUser.phoneNumber,
+            });
+          }
+
+          // 🔥 Save userId to native module for SMS blocking
+          try {
+            await blockedContactService.setUserId(firebaseUser.uid);
+            console.log('✅ UserId saved to native module:', firebaseUser.uid);
+          } catch (error) {
+            console.error('❌ Failed to save userId to native module:', error);
+            // Don't throw - this is not critical enough to break auth flow
+          }
         } else {
-          await setDoc(userDocRef, {
-            user_phone_number: firebaseUser.phoneNumber,
-          });
-          setUser({
-            uid: firebaseUser.uid,
-            user_phone_number: firebaseUser.phoneNumber,
-          });
+          setUser(null);
         }
-      } else {
+      } catch (error) {
+        console.error('Auth error:', error);
+        await signOut(auth);
         setUser(null);
+      } finally {
+        setLoadingUser(false);
       }
-    } catch (error) {
-      console.error('Auth error:', error);
-      await signOut(auth);
-      setUser(null);
-    } finally {
-      // ต้องอยู่ใน finally เพื่อให้ไม่ค้าง
-      setLoadingUser(false);
-    }
 
-    console.log('[authContext] user =', firebaseUser);
-  });
+      console.log('[authContext] user =', firebaseUser);
+    });
 
-  return unsubscribe;
-}, []);
-
-
+    return unsubscribe;
+  }, []);
 
   const signInWithPhone = async (phone: string) => {
     try {
@@ -85,7 +102,7 @@ useEffect(() => {
     }
   };
 
-   const verifyOTP = async (code: string) => {
+  const verifyOTP = async (code: string) => {
     try {
       if (!confirm) throw new Error('ไม่พบข้อมูลการยืนยัน OTP');
       await confirm.confirm(code); // ทำให้ onAuthStateChanged ทำงาน
@@ -95,7 +112,6 @@ useEffect(() => {
       throw error;
     }
   };
-
 
   const logout = async () => {
     try {
@@ -107,7 +123,9 @@ useEffect(() => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, confirm, signInWithPhone, verifyOTP, logout, loadingUser }}>
+    <AuthContext.Provider
+      value={{ user, confirm, signInWithPhone, verifyOTP, logout, loadingUser }}
+    >
       {children}
     </AuthContext.Provider>
   );

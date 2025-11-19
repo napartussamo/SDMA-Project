@@ -10,6 +10,7 @@ import {
   Platform,
   StyleSheet,
   StatusBar,
+  Alert,
 } from 'react-native';
 import { useAuth } from '../context/authContext';
 import Toast from 'react-native-toast-message';
@@ -25,6 +26,7 @@ import {
 import { sendSms } from '../native/SmsSenderModule';
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { blockedContactService } from '../native/blockedContactService';
 
 type Message = {
   id: string;
@@ -44,6 +46,8 @@ export default function ChatScreen({ route }: any) {
   const [input, setInput] = useState('');
   const flatListRef = useRef<FlatList>(null);
 
+  const [isBlocked, setIsBlocked] = useState(false);
+
   // ✅ โหลดข้อความทั้งหมดจาก Firestore
   useEffect(() => {
     if (!user || !contactId) return;
@@ -54,7 +58,7 @@ export default function ChatScreen({ route }: any) {
       user.uid,
       'contactPersons',
       contactId,
-      'messages'
+      'messages',
     );
     const q = query(msgsRef, orderBy('msg_timestamp', 'asc'));
 
@@ -74,7 +78,7 @@ export default function ChatScreen({ route }: any) {
       setMessages(msgs);
       setTimeout(
         () => flatListRef.current?.scrollToEnd({ animated: true }),
-        100
+        100,
       );
     });
 
@@ -83,7 +87,7 @@ export default function ChatScreen({ route }: any) {
 
   // ✅ ดึง risk_score จาก Firestore และแสดง Toast
   const fetchRiskScore = (latestMsg: Message) => {
-     if (!user) return;
+    if (!user) return;
 
     const riskRef = collection(
       firestore,
@@ -93,7 +97,7 @@ export default function ChatScreen({ route }: any) {
       contactId,
       'messages',
       latestMsg.id,
-      'riskScore'
+      'riskScore',
     );
 
     const unsubRisk = onSnapshot(riskRef, snapshot => {
@@ -103,9 +107,7 @@ export default function ChatScreen({ route }: any) {
 
         // อัปเดต message ใน state
         setMessages(prev =>
-          prev.map(m =>
-            m.id === latestMsg.id ? { ...m, risk_score } : m
-          )
+          prev.map(m => (m.id === latestMsg.id ? { ...m, risk_score } : m)),
         );
 
         // แสดง Toast ตามระดับความเสี่ยง
@@ -140,7 +142,7 @@ export default function ChatScreen({ route }: any) {
         user.uid,
         'contactPersons',
         contactId,
-        'messages'
+        'messages',
       );
       await addDoc(msgRef, {
         msg_content: input,
@@ -148,6 +150,7 @@ export default function ChatScreen({ route }: any) {
         msg_status: 'sent',
         msg_timestamp: serverTimestamp(),
       });
+      console.log('✅ SMS sent and message saved.');
       setInput('');
     } catch (err) {
       console.error('Error sending SMS:', err);
@@ -184,6 +187,48 @@ export default function ChatScreen({ route }: any) {
     );
   };
 
+  useEffect(() => {
+    if (user && contactPhone) {
+      blockedContactService
+        .isBlocked(user.uid, contactPhone)
+        .then(setIsBlocked)
+        .catch(console.error);
+    }
+  }, [user, contactPhone]);
+
+  // Add block/unblock handler
+  const handleBlockToggle = async () => {
+    if (!user) return;
+
+    try {
+      if (isBlocked) {
+        await blockedContactService.unblockNumber(user.uid, contactPhone);
+        setIsBlocked(false);
+        Alert.alert('Success', 'Contact unblocked');
+      } else {
+        Alert.alert(
+          'Block Contact',
+          `Block ${contactPhone}? You will no longer receive messages from this number.`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Block',
+              style: 'destructive',
+              onPress: async () => {
+                await blockedContactService.blockNumber(user.uid, contactPhone);
+                setIsBlocked(true);
+                Alert.alert('Success', 'Contact blocked');
+              },
+            },
+          ],
+        );
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update block status');
+      console.error(error);
+    }
+  };
+
   // ✅ UI หลัก
   return (
     <KeyboardAvoidingView
@@ -193,13 +238,22 @@ export default function ChatScreen({ route }: any) {
     >
       {/* Header */}
       <View style={[styles.header]}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => navigation.navigate('Home')}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{contactPhone}</Text>
-        <TouchableOpacity onPress={() => console.log('Delete chat')}>
-          <Ionicons name="trash" size={24} color="#fff" />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <TouchableOpacity onPress={handleBlockToggle}>
+            <Ionicons
+              name={isBlocked ? 'ban' : 'ban'}
+              size={24}
+              color={isBlocked ? 'red' : '#fff'}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => console.log('Delete chat')}>
+            <Ionicons name="trash" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Messages */}

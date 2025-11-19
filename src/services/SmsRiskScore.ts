@@ -1,31 +1,29 @@
-import { firestore } from "../firebase/firebaseConfig";
-import {
-  collection,
-  addDoc,
-} from "@react-native-firebase/firestore";
+import { firestore } from '../firebase/firebaseConfig';
+import { collection, addDoc } from '@react-native-firebase/firestore';
 
-const FASTAPI_URL = "https://fastapi-sdma-classifier.onrender.com/predict_risk_score"; 
+const FASTAPI_URL =
+  'https://fastapi-sdma-classifier.onrender.com/predict_risk_score';
 
-// risk category 
-const getRiskCategory = (score: number): "safe" | "spam" | "scam" => {
-  if (score >= 0 && score <= 29) return "safe";
-  if (score >= 30 && score <= 59) return "spam";
-  return "scam"; 
+// risk category
+const getRiskCategory = (score: number): 'safe' | 'spam' | 'scam' => {
+  if (score >= 0 && score <= 29) return 'safe';
+  if (score >= 30 && score <= 59) return 'spam';
+  return 'scam';
 };
 
 export const analyzeSmsRiskScore = async (
   userId: string,
   contactId: string,
-  msgId: string,  
-  message: string
+  msgId: string,
+  message: string,
 ) => {
   try {
     // log ข้อความที่จะวิเคราะห์
     console.log(`[SmsRiskScore] Analyzing message: "${message}"`);
     // เรียก FastAPI
     const response = await fetch(FASTAPI_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sms_text: message }),
     });
 
@@ -37,18 +35,20 @@ export const analyzeSmsRiskScore = async (
     const risk_score: number = data.risk_score;
     const risk_category = getRiskCategory(risk_score);
 
-    console.log(`[SmsRiskScore] score=${risk_score}, category=${risk_category}`);
+    console.log(
+      `[SmsRiskScore] score=${risk_score}, category=${risk_category}`,
+    );
 
     // สร้าง subcollection riskScore ของ message
     const riskScoreRef = collection(
       firestore,
-      "users",
+      'users',
       userId,
-      "contactPersons",
+      'contactPersons',
       contactId,
-      "messages",
+      'messages',
       msgId,
-      "riskScore"
+      'riskScore',
     );
 
     await addDoc(riskScoreRef, {
@@ -56,8 +56,8 @@ export const analyzeSmsRiskScore = async (
       risk_category,
     });
 
-    console.log("✅ [SmsRiskScore] Saved risk score for message ID: ${msgId}");
+    console.log(`✅ [SmsRiskScore] Saved risk score for message ID: ${msgId}`);
   } catch (error) {
-    console.error("❌ [SmsRiskScore] Error analyzing message:", error);
+    console.error('❌ [SmsRiskScore] Error analyzing message:', error);
   }
 };

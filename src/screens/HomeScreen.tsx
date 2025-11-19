@@ -232,7 +232,7 @@ const HomeScreen = () => {
         renderItem={({ item }) => (
           <TouchableOpacity
             onPress={() =>
-              navigation.navigate('Chat', {
+              navigation.replace('Chat', {
                 contactId: item.id,
                 contactPhone: item.contact,
               })

@@ -14,12 +14,18 @@ export default function ProfileScreen({ navigation }: any) {
           <Text>เบอร์โทรศัพท์ {user?.user_phone_number || '******XXX'}</Text>
         </View>
         <View style={styles.details}>
-          <Text>รายชื่อบล็อก</Text>
+          <Text
+            style={styles.link}
+            onPress={() => navigation.navigate('Blocked')}
+          >
+            รายชื่อบล็อก
+          </Text>
           <Text>ขนาดัวอักษร</Text>
-          <Text style={styles.link} onPress={() => navigation.navigate('Home')}>กลับไปหน้าหลัก</Text>
+          <Text style={styles.link} onPress={() => navigation.navigate('Home')}>
+            กลับไปหน้าหลัก
+          </Text>
         </View>
       </View>
-
 
       <Text
         style={styles.logout}
@@ -35,11 +41,16 @@ export default function ProfileScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24 , justifyContent: 'space-around', flexDirection:'column'},
+  container: {
+    flex: 1,
+    padding: 24,
+    justifyContent: 'space-around',
+    flexDirection: 'column',
+  },
   topView: {},
-  header: {marginBottom: 20},
-  details:{paddingVertical:20,  },
+  header: { marginBottom: 20 },
+  details: { paddingVertical: 20 },
   title: { fontSize: 20, fontWeight: 'bold', marginBottom: 16 },
-  link: { color: 'blue',  },
-  logout: { color: 'black',},
+  link: { color: 'blue' },
+  logout: { color: 'black' },
 });

@@ -29,18 +29,16 @@ type PendingSms = {
   timeoutId?: ReturnType<typeof setTimeout>;
 };
 
+// singleton เพื่อให้ listener ถูก register ครั้งเดียว
+let smsListenerRegistered = false;
+const pendingSmsRef: Record<string, PendingSms> = {};
+
 export function useSmsReceiver() {
   const { user } = useAuth();
-  const pendingSmsRef = useRef<Record<string, PendingSms>>({});
 
   const saveFullSmsToFirestore = useCallback(
     async (fullMsg: string, sender: string) => {
-      if (!user) {
-        console.log('❌ User not available, cannot save SMS');
-        return;
-      }
-
-      console.log(`💾 Attempting to save message: "${fullMsg}" from ${sender}`);
+      if (!user) return console.log('❌ User not available, cannot save SMS');
 
       try {
         const userRef = doc(firestore, 'users', user.uid);
@@ -92,25 +90,18 @@ export function useSmsReceiver() {
   );
 
   useEffect(() => {
-    console.log('📡 [SmsReceiver] Hook mounted, user =', user?.uid);
-
-    if (!user) return;
-    if (!SmsReceiverModule) {
-      console.log('❌ [SmsReceiver] Native module not found');
-      return;
-    }
+    if (!user || !SmsReceiverModule) return;
+    if (smsListenerRegistered) return; // ✅ ป้องกัน register ซ้ำ
 
     const eventEmitter = new NativeEventEmitter(SmsReceiverModule);
 
     const subscription = eventEmitter.addListener(
       'onSmsReceived',
       async (sms: SmsEvent) => {
-        console.log('📩 [SmsReceiver] Received:', sms);
-
         try {
           const key = sms.sender;
           const currentTime = Date.now();
-          const pending = pendingSmsRef.current[key];
+          const pending = pendingSmsRef[key];
 
           if (pending && currentTime - pending.lastTimestamp < 5000) {
             // รวมกับข้อความที่รออยู่
@@ -120,20 +111,19 @@ export function useSmsReceiver() {
             pending.timeoutId = setTimeout(async () => {
               const fullMsg = pending.messages.join('');
               await saveFullSmsToFirestore(fullMsg, key);
-              delete pendingSmsRef.current[key];
+              delete pendingSmsRef[key];
             }, 5500);
           } else {
             // เริ่ม batch ใหม่
             if (pending?.timeoutId) clearTimeout(pending.timeoutId);
 
-            pendingSmsRef.current[key] = {
+            pendingSmsRef[key] = {
               messages: [sms.body],
               lastTimestamp: currentTime,
               timeoutId: setTimeout(async () => {
-                const fullMsg =
-                  pendingSmsRef.current[key]?.messages.join('') || '';
+                const fullMsg = pendingSmsRef[key]?.messages.join('') || '';
                 await saveFullSmsToFirestore(fullMsg, key);
-                delete pendingSmsRef.current[key];
+                delete pendingSmsRef[key];
               }, 5500),
             };
           }
@@ -143,11 +133,13 @@ export function useSmsReceiver() {
       },
     );
 
-    console.log('📡 [SmsReceiver] Listener registered');
+    smsListenerRegistered = true;
+    console.log('📡 [SmsReceiver] Listener registered globally');
 
     return () => {
-      console.log('🧹 [SmsReceiver] Listener removed');
-      subscription.remove();
+      // ไม่ลบ listener เมื่อ unmount เพื่อให้รับ SMS ตลอดเวลา
+      console.log('⚠️ [SmsReceiver] Listener NOT removed on unmount');
+      // subscription.remove(); <- intentionally commented
     };
   }, [user, saveFullSmsToFirestore]);
 }
