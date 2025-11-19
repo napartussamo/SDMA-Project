@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
+  SafeAreaView,
   Text,
   TextInput,
   TouchableOpacity,
@@ -11,6 +12,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { useAuth } from '../context/authContext';
+import Toast from 'react-native-toast-message';
 import { firestore } from '../firebase/firebaseConfig';
 import {
   collection,
@@ -22,7 +24,7 @@ import {
 } from '@react-native-firebase/firestore';
 import { sendSms } from '../native/SmsSenderModule';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@react-native-vector-icons/ionicons';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 type Message = {
   id: string;
@@ -30,17 +32,19 @@ type Message = {
   msg_direction: string;
   msg_status: string;
   msg_timestamp: number;
+  risk_score: number;
 };
 
 export default function ChatScreen({ route }: any) {
   const navigation = useNavigation();
-  const { contactId, contactPhone, contactName } = route.params;
+  const { contactId, contactPhone } = route.params;
   const { user } = useAuth();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const flatListRef = useRef<FlatList>(null);
 
+  // ✅ โหลดข้อความทั้งหมดจาก Firestore
   useEffect(() => {
     if (!user || !contactId) return;
 
@@ -50,25 +54,81 @@ export default function ChatScreen({ route }: any) {
       user.uid,
       'contactPersons',
       contactId,
-      'messages',
+      'messages'
     );
     const q = query(msgsRef, orderBy('msg_timestamp', 'asc'));
 
     const unsub = onSnapshot(q, snapshot => {
-      const msgs: Message[] = snapshot.docs.map(doc => ({
+      const msgs: Message[] = snapshot.docs.map((doc: any) => ({
         id: doc.id,
         ...doc.data(),
+        risk_score: 0,
       })) as Message[];
+
+      // ตรวจจับข้อความใหม่
+      if (msgs.length > messages.length) {
+        const latestMsg = msgs[msgs.length - 1];
+        fetchRiskScore(latestMsg);
+      }
+
       setMessages(msgs);
       setTimeout(
         () => flatListRef.current?.scrollToEnd({ animated: true }),
-        100,
+        100
       );
     });
 
     return () => unsub();
-  }, [user, contactId]);
+  }, [user, contactId, messages.length]);
 
+  // ✅ ดึง risk_score จาก Firestore และแสดง Toast
+  const fetchRiskScore = (latestMsg: Message) => {
+     if (!user) return;
+
+    const riskRef = collection(
+      firestore,
+      'users',
+      user.uid,
+      'contactPersons',
+      contactId,
+      'messages',
+      latestMsg.id,
+      'riskScore'
+    );
+
+    const unsubRisk = onSnapshot(riskRef, snapshot => {
+      if (!snapshot.empty) {
+        const riskData = snapshot.docs[0].data();
+        const risk_score = Number(riskData.risk_score) || 0;
+
+        // อัปเดต message ใน state
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === latestMsg.id ? { ...m, risk_score } : m
+          )
+        );
+
+        // แสดง Toast ตามระดับความเสี่ยง
+        if (risk_score >= 60) {
+          Toast.show({
+            type: 'riskError',
+            text1: 'ขอแนะนำ "อย่าคลิก" ลิงก์ใดๆในข้อความนี้',
+            position: 'bottom',
+          });
+        } else if (risk_score >= 30 && risk_score < 60) {
+          Toast.show({
+            type: 'riskWarning',
+            text1: 'ขอแนะนำ ตรวจสอบก่อนเชื่อข้อความนี้!',
+            position: 'bottom',
+          });
+        }
+      }
+    });
+
+    return unsubRisk;
+  };
+
+  // ✅ ส่งข้อความ
   const handleSend = async () => {
     if (!input.trim() || !user) return;
 
@@ -80,7 +140,7 @@ export default function ChatScreen({ route }: any) {
         user.uid,
         'contactPersons',
         contactId,
-        'messages',
+        'messages'
       );
       await addDoc(msgRef, {
         msg_content: input,
@@ -88,39 +148,50 @@ export default function ChatScreen({ route }: any) {
         msg_status: 'sent',
         msg_timestamp: serverTimestamp(),
       });
-      console.log('✅ SMS sent and message saved.');
       setInput('');
     } catch (err) {
       console.error('Error sending SMS:', err);
     }
   };
 
+  // ✅ แสดงแต่ละข้อความ
   const renderMessage = ({ item }: { item: Message }) => {
     const isOutgoing = item.msg_direction === 'outgoing';
+    const bubbleColor =
+      item.risk_score >= 60
+        ? '#F7695F'
+        : item.risk_score >= 30
+        ? '#FFEB3B'
+        : '#cce5ff';
+
     return (
-      <View
-        style={[
-          styles.messageBubble,
-          isOutgoing ? styles.outgoing : styles.incoming,
-        ]}
-      >
-        <Text style={styles.messageText}>{item.msg_content}</Text>
-        <Text style={styles.timestamp}>
-          {item.msg_timestamp
-            ? new Date(item.msg_timestamp).toLocaleTimeString()
-            : ''}
-        </Text>
-      </View>
+      <SafeAreaView>
+        <View
+          style={[
+            styles.messageBubble,
+            isOutgoing ? styles.outgoing : styles.incoming,
+            { backgroundColor: isOutgoing ? '#e5e5e5' : bubbleColor },
+          ]}
+        >
+          <Text style={styles.messageText}>{item.msg_content}</Text>
+          <Text style={styles.timestamp}>
+            {item.msg_timestamp
+              ? new Date(item.msg_timestamp).toLocaleTimeString()
+              : ''}
+          </Text>
+        </View>
+      </SafeAreaView>
     );
   };
 
+  // ✅ UI หลัก
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={80}
     >
-      {/* Header Bar */}
+      {/* Header */}
       <View style={[styles.header]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
@@ -131,6 +202,7 @@ export default function ChatScreen({ route }: any) {
         </TouchableOpacity>
       </View>
 
+      {/* Messages */}
       <FlatList
         ref={flatListRef}
         data={messages}
@@ -139,14 +211,8 @@ export default function ChatScreen({ route }: any) {
         contentContainerStyle={styles.listContainer}
       />
 
-      {/* Input area */}
+      {/* Input */}
       <View style={styles.inputContainer}>
-        <TouchableOpacity
-          style={styles.iconButton}
-          onPress={() => console.log('Image picker')}
-        >
-          <Ionicons name="image-outline" size={24} color="#555" />
-        </TouchableOpacity>
         <TextInput
           style={styles.input}
           value={input}
@@ -173,7 +239,6 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
     paddingBottom: 10,
   },
-
   headerTitle: {
     color: '#fff',
     fontSize: 18,
@@ -187,8 +252,8 @@ const styles = StyleSheet.create({
     padding: 10,
     marginVertical: 4,
   },
-  incoming: { alignSelf: 'flex-start', backgroundColor: '#cce5ff' },
-  outgoing: { alignSelf: 'flex-end', backgroundColor: '#e5e5e5' },
+  incoming: { alignSelf: 'flex-start' },
+  outgoing: { alignSelf: 'flex-end' },
   messageText: { fontSize: 16 },
   timestamp: {
     fontSize: 10,
