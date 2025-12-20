@@ -25,8 +25,14 @@ import {
 } from '@react-native-firebase/firestore';
 import { sendSms } from '../native/SmsSenderModule';
 import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/types';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { blockedContactService } from '../native/blockedContactService';
+import { getDocs, deleteDoc } from '@react-native-firebase/firestore';
+import { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
+
+
 
 type Message = {
   id: string;
@@ -37,8 +43,13 @@ type Message = {
   risk_score: number;
 };
 
+type ChatNavProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'Chat'
+>;
+
 export default function ChatScreen({ route }: any) {
-  const navigation = useNavigation();
+  const navigation = useNavigation<ChatNavProp>();
   const { contactId, contactPhone } = route.params;
   const { user } = useAuth();
 
@@ -47,6 +58,7 @@ export default function ChatScreen({ route }: any) {
   const flatListRef = useRef<FlatList>(null);
 
   const [isBlocked, setIsBlocked] = useState(false);
+
 
   // ✅ โหลดข้อความทั้งหมดจาก Firestore
   useEffect(() => {
@@ -63,6 +75,8 @@ export default function ChatScreen({ route }: any) {
     const q = query(msgsRef, orderBy('msg_timestamp', 'asc'));
 
     const unsub = onSnapshot(q, snapshot => {
+      if (!snapshot || snapshot.empty) return;
+
       const msgs: Message[] = snapshot.docs.map((doc: any) => ({
         id: doc.id,
         ...doc.data(),
@@ -101,7 +115,7 @@ export default function ChatScreen({ route }: any) {
     );
 
     const unsubRisk = onSnapshot(riskRef, snapshot => {
-      if (!snapshot.empty) {
+      if (!snapshot || snapshot.empty) return;{
         const riskData = snapshot.docs[0].data();
         const risk_score = Number(riskData.risk_score) || 0;
 
@@ -157,6 +171,58 @@ export default function ChatScreen({ route }: any) {
     }
   };
 
+  const handleDeleteChat = () => {
+  Alert.alert(
+    'ลบแชททั้งหมด',
+    'คุณต้องการลบข้อความทั้งหมดของบทสนทนานี้หรือไม่?',
+    [
+      { text: 'ยกเลิก', style: 'cancel' },
+      {
+        text: 'ลบ',
+        style: 'destructive',
+        onPress: async () => {
+          if (!user) return;
+
+          try {
+            const msgsRef = collection(
+              firestore,
+              'users',
+              user.uid,
+              'contactPersons',
+              contactId,
+              'messages'
+            );
+
+            const snapshot = await getDocs(msgsRef);
+
+            const deletePromises: Promise<void>[] = [];
+
+            snapshot.forEach((doc: FirebaseFirestoreTypes.QueryDocumentSnapshot<FirebaseFirestoreTypes.DocumentData>) => {
+              deletePromises.push(deleteDoc(doc.ref));
+            });
+
+            await Promise.all(deletePromises);
+
+            setMessages([]);
+
+            Toast.show({
+              type: 'success',
+              text1: 'ลบข้อความสำเร็จ',
+              position: 'bottom',
+            });
+
+          } catch (error) {
+            console.error(error);
+            Alert.alert('Error', 'ไม่สามารถลบข้อความได้');
+          }
+        },
+      },
+    ]
+  );
+};
+
+
+
   // ✅ แสดงแต่ละข้อความ
   const renderMessage = ({ item }: { item: Message }) => {
     const isOutgoing = item.msg_direction === 'outgoing';
@@ -165,7 +231,7 @@ export default function ChatScreen({ route }: any) {
         ? '#F7695F'
         : item.risk_score >= 30
         ? '#FFEB3B'
-        : '#cce5ff';
+        : '#ddd';
 
     return (
       <SafeAreaView>
@@ -173,7 +239,7 @@ export default function ChatScreen({ route }: any) {
           style={[
             styles.messageBubble,
             isOutgoing ? styles.outgoing : styles.incoming,
-            { backgroundColor: isOutgoing ? '#e5e5e5' : bubbleColor },
+            { backgroundColor: isOutgoing ? '#cce5ff' : bubbleColor },
           ]}
         >
           <Text style={styles.messageText}>{item.msg_content}</Text>
@@ -239,7 +305,7 @@ export default function ChatScreen({ route }: any) {
       {/* Header */}
       <View style={[styles.header]}>
         <TouchableOpacity onPress={() => navigation.navigate('Home')}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+          <Ionicons name="arrow-back" size={24} color="#1E3A8A" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{contactPhone}</Text>
         <View style={{ flexDirection: 'row', gap: 12 }}>
@@ -247,11 +313,11 @@ export default function ChatScreen({ route }: any) {
             <Ionicons
               name={isBlocked ? 'ban' : 'ban'}
               size={24}
-              color={isBlocked ? 'red' : '#fff'}
+              color={isBlocked ? 'red' : '#1E3A8A'}
             />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => console.log('Delete chat')}>
-            <Ionicons name="trash" size={24} color="#fff" />
+          <TouchableOpacity onPress={(handleDeleteChat)}>
+            <Ionicons name="trash" size={24} color="#1E3A8A" />
           </TouchableOpacity>
         </View>
       </View>
@@ -272,10 +338,10 @@ export default function ChatScreen({ route }: any) {
           value={input}
           onChangeText={setInput}
           placeholder="พิมพ์ข้อความที่นี่..."
-          placeholderTextColor="#999"
+          placeholderTextColor="#1E3A8A"
         />
         <TouchableOpacity style={styles.iconButton} onPress={handleSend}>
-          <Ionicons name="send" size={24} color="#007AFF" />
+          <Ionicons name="send" size={24} color="#1E3A8A" />
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -285,7 +351,7 @@ export default function ChatScreen({ route }: any) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   header: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#fff',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -294,7 +360,7 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   headerTitle: {
-    color: '#fff',
+    color: '#1E3A8A',
     fontSize: 18,
     fontWeight: 'bold',
     paddingTop: 2,

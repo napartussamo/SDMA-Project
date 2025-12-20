@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
   
   header: {marginVertical:36},
   title: {fontSize: 16, fontWeight: 'bold', textAlign: 'center', color: '#fff',lineHeight: 32},
-  subtitle: {fontSize: 16, textAlign: 'center', color: '#fff',lineHeight: 32,},
+  subtitle: {fontSize: 12, textAlign: 'center', color: '#fff',lineHeight: 32,},
   btn: { backgroundColor: "#F5C45E", borderRadius: 42, marginHorizontal:50, marginBottom: 80, elevation: 5},
   btnText: { fontSize:16, color:'#000', textAlign: 'center', paddingVertical:10, paddingHorizontal:20}
   

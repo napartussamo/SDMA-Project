@@ -64,7 +64,7 @@ const OTPVerifyScreen = ({ navigation }: any) => {
     <View style={styles.container}>
       <View>
         <View style={styles.header}>
-          <Text style={styles.title}>ใส่รหัสยืนยัน</Text>
+          <Text style={styles.title}>ใส่รหัสยืนยัน OTP</Text>
         </View>
         <View style={styles.otpRow}>
           {code.map((value, index) => (

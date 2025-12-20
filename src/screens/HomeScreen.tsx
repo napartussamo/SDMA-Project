@@ -18,9 +18,12 @@ import {
 import { useSmsReceiver } from '../native/SmsReceiverModule';
 import { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-//import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Platform, StatusBar } from 'react-native';
+import { RootStackParamList } from '../navigation/types.ts';
+
+
 
 type Message = {
   id: string;
@@ -34,11 +37,6 @@ type Message = {
 
 type TabType = 'All' | 'Safe' | 'Spam' | 'Scam';
 
-type RootStackParamList = {
-  Home: undefined;
-  Profile: undefined;
-  Chat: { contactId: string; contactPhone: string };
-};
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -56,7 +54,12 @@ const HomeScreen = () => {
   useSmsReceiver();
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+  setMessages([]);
+  setFilteredMessages([]);
+  return;
+}
+
 
     const contactsRef = collection(
       firestore,
@@ -67,7 +70,14 @@ const HomeScreen = () => {
     let messageListeners: (() => void)[] = [];
 
     const unsubscribeContacts = onSnapshot(contactsRef, snapshot => {
-      messageListeners.forEach(unsub => unsub());
+        if (!snapshot || snapshot.empty) return;
+        // 🔁 ปิด listener เก่าก่อน
+        if (Array.isArray(messageListeners)) {
+          messageListeners.forEach(unsub => {
+            if (typeof unsub === 'function') unsub();
+          });
+        }
+  
       messageListeners = [];
 
       snapshot.forEach(
@@ -80,7 +90,7 @@ const HomeScreen = () => {
           const q = query(messagesRef, orderBy('msg_timestamp', 'desc'));
 
           const unsubscribeMessages = onSnapshot(q, msgsSnapshot => {
-            if (!msgsSnapshot.empty) {
+            if (!msgsSnapshot || msgsSnapshot.empty) return;{
               const latestMsg = msgsSnapshot.docs[0];
               const latest = latestMsg.data() as any;
 
@@ -116,7 +126,7 @@ const HomeScreen = () => {
               );
 
               const unsubRisk = onSnapshot(riskScoreRef, riskSnap => {
-                if (!riskSnap.empty) {
+                if (!riskSnap || riskSnap.empty) return;{
                   const riskData = riskSnap.docs[0].data();
                   const risk_score = Number(riskData.risk_score) || 0;
 
@@ -189,7 +199,7 @@ const HomeScreen = () => {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
-          <Ionicons name="menu" size={28} color="#000" />
+          <Ionicons name="person-circle-outline" size={45} color="#1E3A8A" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>SDMA</Text>
       </View>
@@ -227,46 +237,61 @@ const HomeScreen = () => {
 
       {/* 📩 Messages */}
       <FlatList
-        data={filteredMessages}
-        keyExtractor={item => item.id}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            onPress={() =>
-              navigation.replace('Chat', {
-                contactId: item.id,
-                contactPhone: item.contact,
-              })
-            }
-          >
-            <View style={styles.messageItem}>
-              <View style={styles.row}>
-                <View
-                  style={[
-                    styles.riskCircle,
-                    { backgroundColor: getRiskColor(item.risk_score) },
-                  ]}
-                >
-                  <Text style={styles.riskText}>{item.risk_score}</Text>
-                </View>
+  data={filteredMessages}
+  keyExtractor={item => item.id}
+  renderItem={({ item }) => (
+    <View style={styles.messageItem}>
+      <View style={styles.row}>
 
-                <View>
-                  <Text style={styles.contactText}>{item.contact}</Text>
-                  <Text numberOfLines={1}>{item.body}</Text>
-                  <Text style={styles.metaText}>
-                    {item.direction} • {item.status}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          </TouchableOpacity>
-        )}
-      />
+        {/* 🔴 1. วงกลม → ไปหน้า RiskScore */}
+        <TouchableOpacity
+          onPress={() =>
+            navigation.navigate('RiskScore', {
+              risk_score: item.risk_score,
+              message: item.body,
+            })
+          }
+        >
+          <View
+            style={[
+              styles.riskCircle,
+              { backgroundColor: getRiskColor(item.risk_score) },
+            ]}
+          >
+            <Text style={styles.riskText}>{item.risk_score}</Text>
+          </View>
+        </TouchableOpacity>
+
+        {/* 📩 2. ข้อความ → ไปหน้า Chat */}
+        <TouchableOpacity
+          style={{ flex: 1 }}
+          onPress={() =>
+            navigation.replace('Chat', {
+              contactId: item.id,
+              contactPhone: item.contact,
+            })
+          }
+        >
+          <View>
+            <Text style={styles.contactText}>{item.contact}</Text>
+            <Text numberOfLines={1}>{item.body}</Text>
+            <Text style={styles.metaText}>
+              {item.direction} • {item.status}
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+      </View>
+    </View>
+  )}
+/>
+
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, backgroundColor: '#fff' },
+  container: { flex: 1, paddingHorizontal: 24, backgroundColor: '#fff' },
   searchbar: {
     fontSize: 16,
     paddingHorizontal: 20,
@@ -281,14 +306,14 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    paddingBottom: 10,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     marginLeft: 12,
-    color: '#000',
+    color: '#1E3A8A',
   },
   tabs: {
     flexDirection: 'row',

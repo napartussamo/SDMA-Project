@@ -16,6 +16,7 @@ import {
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useCallback } from 'react';
+import { Platform, StatusBar } from 'react-native';
 
 export default function BlockedContactScreen() {
   const navigation = useNavigation();
@@ -68,7 +69,7 @@ export default function BlockedContactScreen() {
   const renderItem = ({ item }: { item: BlockedContact }) => (
     <View style={styles.contactItem}>
       <View style={styles.iconContainer}>
-        <Ionicons name="ban" size={24} color="#F44336" />
+        <Ionicons name="person-circle-outline" size={45} color="#000" />
       </View>
       <View style={styles.contactInfo}>
         <Text style={styles.phoneNumber}>{item.phoneNumber}</Text>
@@ -89,9 +90,9 @@ export default function BlockedContactScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+          <Ionicons name="arrow-back" size={24} color="#1E3A8A" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Blocked Contacts</Text>
+        <Text style={styles.headerTitle}>รายชื่อบล็อก</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -122,15 +123,14 @@ export default function BlockedContactScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   header: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#fff',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingTop: 40,
+    paddingHorizontal: 10,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    paddingBottom: 10,
   },
-  headerTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  headerTitle: { color: '#1E3A8A', fontSize: 18, fontWeight: 'bold', marginLeft: 8 },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -152,14 +152,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    //borderWidth: 1,
+    //borderColor: '#e0e0e0',
   },
   iconContainer: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#FFEBEE',
+    backgroundColor: '#f9f9f9',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -173,10 +173,10 @@ const styles = StyleSheet.create({
   },
   blockedDate: { fontSize: 12, color: '#666' },
   unblockButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#FFEB3B',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
   },
-  unblockText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  unblockText: { color: '#000', fontSize: 14, fontWeight: '600' },
 });

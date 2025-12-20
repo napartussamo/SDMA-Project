@@ -1,4 +1,3 @@
-//import React from 'react';
 import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -13,8 +12,11 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import Toast from 'react-native-toast-message';
 import { toastConfig } from './src/components/toastConfig.tsx';
 import BlockContactScreen from './src/screens/BlockedContactScreen';
+import RiskScoreScreen from './src/screens/RiskScoreScreen';
 import { useSmsReceiver } from './src/native/SmsReceiverModule';
-const Stack = createNativeStackNavigator();
+import { RootStackParamList } from './src/navigation/types';
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const AppNavigator = () => {
   return (
@@ -29,6 +31,7 @@ const AppNavigator = () => {
         options={{ statusBarStyle: 'dark' }}
       />
       <Stack.Screen name="Chat" component={ChatScreen} />
+      <Stack.Screen name="RiskScore" component={RiskScoreScreen} options={{ title: 'Risk Score' }}/>
       <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="Blocked" component={BlockContactScreen} />
     </Stack.Navigator>
