@@ -69,7 +69,7 @@ export default function BlockedContactScreen() {
   const renderItem = ({ item }: { item: BlockedContact }) => (
     <View style={styles.contactItem}>
       <View style={styles.iconContainer}>
-        <Ionicons name="person-circle-outline" size={45} color="#000" />
+        <Ionicons name="person-circle-outline" size={45} color="#1E3A8A" />
       </View>
       <View style={styles.contactInfo}>
         <Text style={styles.phoneNumber}>{item.phoneNumber}</Text>
