@@ -270,20 +270,20 @@ export default function ChatScreen({ route }: any) {
       if (isBlocked) {
         await blockedContactService.unblockNumber(user.uid, contactPhone);
         setIsBlocked(false);
-        Alert.alert('Success', 'Contact unblocked');
+        Alert.alert('สำเร็จ', 'ปลดบล็อกผู้ติดต่อ');
       } else {
         Alert.alert(
-          'Block Contact',
-          `Block ${contactPhone}? You will no longer receive messages from this number.`,
+          'บล็อกผู้ติดต่อ',
+          `หลังจากเพิ่มหมายเลข ${contactPhone}? คุณจะไม่ได้รับข้อความจากหมายเลขนี้อีกต่อไป`,
           [
-            { text: 'Cancel', style: 'cancel' },
+            { text: 'ยกเลิก', style: 'cancel' },
             {
-              text: 'Block',
+              text: 'บล็อก',
               style: 'destructive',
               onPress: async () => {
                 await blockedContactService.blockNumber(user.uid, contactPhone);
                 setIsBlocked(true);
-                Alert.alert('Success', 'Contact blocked');
+                Alert.alert('สำเร็จ', 'ผู้ติดต่อถูกบล็อก');
               },
             },
           ],

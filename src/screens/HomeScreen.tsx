@@ -6,6 +6,7 @@ import {
   FlatList,
   TextInput,
   TouchableOpacity,
+  Linking,
 } from 'react-native';
 import { useAuth } from '../context/authContext';
 import { firestore } from '../firebase/firebaseConfig';
@@ -189,6 +190,8 @@ const HomeScreen = () => {
     setFilteredMessages(applyFilter(messages, text, selectedTab));
   };
 
+  
+
   const getRiskColor = (score: number) => {
     if (score >= 0 && score <= 29) return '#4CAF50'; // Safe
     if (score >= 30 && score <= 59) return '#FFEB3B'; // Spam
@@ -281,11 +284,12 @@ const HomeScreen = () => {
           </View>
         </TouchableOpacity>
 
+
       </View>
     </View>
   )}
 />
-
+        
     </View>
   );
 };
@@ -354,6 +358,9 @@ const styles = StyleSheet.create({
   riskText: { color: '#000', fontWeight: 'bold' },
   contactText: { fontWeight: 'bold', marginBottom: 4 },
   metaText: { fontSize: 12, color: '#666', marginTop: 4 },
-});
+ 
+},
+
+);
 
 export default HomeScreen;

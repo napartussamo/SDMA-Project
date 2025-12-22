@@ -55,14 +55,6 @@ export default function ProfileScreen({ navigation }: any) {
           <Ionicons name="chevron-forward" size={20} color="#999" />
         </TouchableOpacity>
 
-        {/* Font size */}
-        <TouchableOpacity style={styles.row}>
-          <View style={styles.rowLeft}>
-            <Ionicons name="text-outline" size={22} />
-            <Text style={styles.rowText}>ขนาดตัวอักษร</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color="#999" />
-        </TouchableOpacity>
       </View>
 
       {/* Logout */}
